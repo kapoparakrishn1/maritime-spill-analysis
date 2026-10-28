@@ -22,19 +22,29 @@ def get_scene_splits(data_root="/Users/kingu/11/02_Test_images_and_ground_truth"
     train_scenes = []
     val_scenes = []
 
-    for cat in ["Oil", "Lookalike", "No oil"]:
+    for cat in ["Oil", "Lookalike", "No oil", "No_oil"]:
         img_dir = os.path.join(data_root, "Images", cat)
         mask_dir = os.path.join(data_root, "Mask", cat)
+        if not os.path.isdir(img_dir) or not os.path.isdir(mask_dir):
+            continue
         imgs = sorted(glob.glob(os.path.join(img_dir, "*.tif")))
+        if not imgs:
+            continue
         random.shuffle(imgs)
 
         n_train = int(len(imgs) * train_ratio)
         for p in imgs[:n_train]:
-            mask_p = os.path.join(mask_dir, os.path.basename(p).replace(".tif", "_segmentation.tif"))
-            train_scenes.append((p, mask_p, cat))
+            mask_p_plain = os.path.join(mask_dir, os.path.basename(p))
+            mask_p_seg = os.path.join(mask_dir, os.path.basename(p).replace(".tif", "_segmentation.tif"))
+            mask_p = mask_p_plain if os.path.exists(mask_p_plain) else mask_p_seg
+            if os.path.exists(mask_p):
+                train_scenes.append((p, mask_p, cat))
         for p in imgs[n_train:]:
-            mask_p = os.path.join(mask_dir, os.path.basename(p).replace(".tif", "_segmentation.tif"))
-            val_scenes.append((p, mask_p, cat))
+            mask_p_plain = os.path.join(mask_dir, os.path.basename(p))
+            mask_p_seg = os.path.join(mask_dir, os.path.basename(p).replace(".tif", "_segmentation.tif"))
+            mask_p = mask_p_plain if os.path.exists(mask_p_plain) else mask_p_seg
+            if os.path.exists(mask_p):
+                val_scenes.append((p, mask_p, cat))
 
     return train_scenes, val_scenes
 
@@ -102,7 +112,7 @@ class SARDataset(Dataset):
         grid_steps = 2048 // self.tile_size  # 4x4 = 16 tiles per scene
 
         for img_path, mask_path, category in self.scene_list:
-            is_negative_scene = (category in ["Lookalike", "No oil"])
+            is_negative_scene = (category in ["Lookalike", "No oil", "No_oil"])
             
             if is_negative_scene:
                 for r in range(grid_steps):
